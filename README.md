@@ -6,16 +6,14 @@ Universal AI agent skills, installable with [skills.sh](https://www.skills.sh) i
 
 ```sh
 # list the skills in this repo
-npx skills add <owner>/skills --list
+npx skills add kerryhatcher/skills --list
 
 # install one
-npx skills add <owner>/skills --skill sops-age
+npx skills add kerryhatcher/skills --skill sops-age
 
 # target a specific agent
-npx skills add <owner>/skills --skill sops-age -a claude-code
+npx skills add kerryhatcher/skills --skill sops-age -a claude-code
 ```
-
-Replace `<owner>` with the GitHub account hosting this repo.
 
 ## Skills
 
