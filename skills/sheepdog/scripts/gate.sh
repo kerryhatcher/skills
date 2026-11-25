@@ -48,6 +48,12 @@ for var in RAM_MIN_GIB:"$ram_min" DISK_MAX_PCT:"$disk_max" TMP_MAX_PCT:"$tmp_max
   fi
 done
 
+# Bash treats leading-zero integer literals as octal in arithmetic contexts.
+# Normalize accepted overrides before comparing them.
+ram_min=$((10#$ram_min))
+disk_max=$((10#$disk_max))
+tmp_max=$((10#$tmp_max))
+
 fail=0
 unknown=0
 

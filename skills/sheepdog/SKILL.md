@@ -47,7 +47,7 @@ entry only if it pins the same harness and model as this table.
 | Role | Name prefix | Use for | Harness and model | Fallback (in order) |
 | --- | --- | --- | --- | --- |
 | planner | `plan` | Breaking down a part, design, specs | `claude --model opus` (latest Opus) | `claude --model sonnet`, then pi round robin |
-| implementer | `dev` | Writing and editing code | `codex --model <latest Terra>` | pi round robin |
+| implementer | `dev` | Writing and editing code | `codex --model <latest Terra>` for substantial coding; pi round robin for work suited to its agents | `codex --model <latest Luna>`, `claude --model haiku`, then pi round robin |
 | quick | `quick` | Small lookups, trivial edits, summaries | pi round robin | `claude --model sonnet` |
 | reviewer | `review` | Read-only review of plans and changes | chosen per artifact; see **Step 2b** | see Step 2b |
 | integrator | `integ` | Merging part branches, resolving conflicts, running the full test suite, PRs | `claude --model sonnet` | `codex --model <latest Sol>`, then Claude Opus |
@@ -58,13 +58,15 @@ fallback you used and why.
 
 ### Resolving "latest" model names
 
-- **Claude:** `--model opus` and `--model sonnet` are aliases that always
+- **Claude:** `--model opus`, `--model sonnet`, and `--model haiku` are aliases that always
   resolve to the newest Opus or Sonnet. Don't pin a version.
 - **Codex Terra / Sol:** use the highest-numbered `gpt-<version>-terra` (or
   `-sol`) that Codex lists, from Codex's `/model` picker or the `slug`
   fields in `$HOME/.codex/models_cache.json`. As of 2026-11-25 these are
   `gpt-6.1-terra` and `gpt-6.2-sol`. Terra and Sol versions move
   independently, so check each one.
+- **Codex Luna:** use the latest Luna model listed by Codex's `/model` picker
+  or `$HOME/.codex/models_cache.json`.
 
 ### pi round robin
 
@@ -120,12 +122,19 @@ that is installed, passes the quota gate, and is not the author's model:
 
 | Artifact produced by | Reviewer, in order of preference |
 | --- | --- |
-| Plan from Claude Opus | Codex latest Sol → `claude --model sonnet` → pi (round robin) |
-| Plan from a fallback planner | Claude Opus → Codex latest Sol → the other pi model |
-| Change from Codex Terra | Codex latest Sol → Claude Opus → pi (round robin) |
-| Change from a pi model | Codex latest Sol → the other pi model → `claude --model sonnet` |
-| Change from a quick task (pi) | the other pi model → Codex latest Sol → `claude --model sonnet` |
-| Integration change (merge fixes, conflict resolution) | Codex latest Sol → Claude Opus → pi (round robin); never the integrator's own model |
+| Plan from Claude Opus | Codex latest Sol → Codex latest Luna → `claude --model haiku` → `claude --model sonnet` → pi (round robin) |
+| Plan from a fallback planner | Claude Opus → Codex latest Sol → Codex latest Luna → `claude --model haiku` → the other pi model |
+| Change from Codex Terra | Codex latest Sol → `claude --model haiku` → Codex latest Luna → Claude Opus → pi (round robin) |
+| Change from Codex Luna or Claude Haiku | Codex latest Sol → Claude Opus → pi (round robin) |
+| Change from a pi model | Codex latest Sol → `claude --model haiku` → Codex latest Luna → the other pi model → `claude --model sonnet` |
+| Change from a quick task (pi) | the other pi model → Codex latest Luna → `claude --model haiku` → Codex latest Sol → `claude --model sonnet` |
+| Integration change (merge fixes, conflict resolution) | Codex latest Sol → `claude --model haiku` → Codex latest Luna → Claude Opus → pi (round robin); never the integrator's own model |
+
+Codex Luna and Claude Haiku are suitable for peer review of coding changes
+and for coding tasks within their capability. For work that is too complex
+for them but fits the pi agents, prefer pi. If pi is unavailable or fails
+its credit gate, use Luna or Haiku as an implementer fallback when the task
+fits. Apply the cross-model rule above when reviewing their changes.
 
 - Lookups and summaries that change no files and produce no plan don't need
   review.
