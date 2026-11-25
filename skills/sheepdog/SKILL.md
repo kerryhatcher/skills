@@ -152,7 +152,7 @@ session before the first launch, and again before each new wave of agents.
 
 **If any single quota on a harness (session, 5-hour, weekly, or per-model)
 has less than 20% remaining, do not launch that harness.** **For pi on
-OpenRouter, do not launch it when less than $10 of credit remains.** Route the role
+OpenRouter, do not launch it when less than 10 US dollars of credit remains.** Route the role
 to its fallback and say which quota was low and when it resets. If every
 candidate harness fails the gate, stop and ask the user before launching
 anything. If a quota can't be read, treat it as unknown: say so, and ask
@@ -168,14 +168,17 @@ RAM, disk and `/tmp` quota before. Before every launch, check:
 | Resource | Check | Don't launch if |
 | --- | --- | --- |
 | Live agents | `hc ls --label sheepdog=$run` | 4 or more of your agents are already live (excluding you) |
-| RAM | `awk '/MemAvailable/{print int($2/1048576)}' /proc/meminfo` (GiB) | under 4 GiB available |
-| Disk | `df -P <repo> \| awk 'NR==2{print $5}'` | the repo's filesystem is 85% full or more |
-| /tmp | `df -P /tmp \| awk 'NR==2{print $5}'` | `/tmp` is 80% full or more |
+| RAM, disk, /tmp | `scripts/gate.sh <repo>` | any line it prints as `FAIL`: under 4 GiB RAM available, the repo's filesystem is 85% full or more, or `/tmp` is 80% full or more |
+
+Run `scripts/gate.sh <repo>` from the skill directory (the same place
+`references/` resolves from). It prints one `ok:` or `FAIL:` line per resource
+and exits non-zero when a gate fails. Pass the user's numbers through
+`RAM_MIN_GIB`, `DISK_MAX_PCT` and `TMP_MAX_PCT` when they give their own
+limits. Don't reimplement the checks inline: these are the only copies.
 
 If a check fails, run the cleanup in Step 6 first: finished and idle agents,
 merged worktrees, temp dirs. Then check again. If it still fails, wait for a
-running agent to finish, or ask the user. These limits are defaults; use the
-user's numbers if they give any.
+running agent to finish, or ask the user.
 
 ## Step 4: name and label every agent
 
