@@ -28,6 +28,18 @@ npx skills add kerryhatcher/skills --skill sops-age -a claude-code
 2. Keep `name` equal to the directory name; start `description` with "Use when...".
 3. Run `scripts/validate.sh`.
 
+## Secret scanning
+
+Every commit and push is scanned with [TruffleHog](https://github.com/trufflesecurity/trufflehog) and [Trivy](https://github.com/aquasecurity/trivy):
+
+- **Locally:** a pre-commit hook in `.githooks/` runs `scripts/validate.sh`, then scans the staged files. Install `trufflehog` and `trivy`, then enable it once per clone:
+
+  ```sh
+  git config core.hooksPath .githooks
+  ```
+
+- **CI:** `.github/workflows/security.yml` runs both on push, pull request, and weekly.
+
 This repo is public: no usernames, absolute home paths, or secrets.
 
 ## License
