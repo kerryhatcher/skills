@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Pre-commit: validate skills, then scan the STAGED content (not the working
+# tree) for secrets with trufflehog and for secrets/misconfig with trivy.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Bypass in an emergency: git commit --no-verify
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+scripts/validate.sh
+
+missing=()
+for tool in trufflehog trivy; do
+  command -v "$tool" >/dev/null || missing+=("$tool")
+done
+if ((${#missing[@]})); then
+  echo "pre-commit: missing ${missing[*]}; install them or commit with --no-verify" >&2
+  exit 1
+fi
+
+# Export staged versions of added/changed files into a temp dir.
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+git diff --cached --name-only --diff-filter=ACMR -z |
+  git checkout-index --stdin -z --prefix="$stage/"
+
+if [ -z "$(ls -A "$stage")" ]; then
+  exit 0
+fi
+
+echo "pre-commit: trufflehog (staged files)"
+trufflehog filesystem "$stage" --no-update --fail \
+  --results=verified,unknown --log-level=-1
+
+echo "pre-commit: trivy (staged files)"
+trivy fs "$stage" --scanners secret,misconfig --exit-code 1 --quiet
+
+echo "pre-commit: OK"
