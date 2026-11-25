@@ -13,14 +13,30 @@ npx skills add kerryhatcher/skills --skill sops-age
 
 # target a specific agent
 npx skills add kerryhatcher/skills --skill sops-age -a claude-code
+
+# update installed skills later (-g for user-level installs)
+npx skills update -g
 ```
+
+### sheepdog needs herdr-core
+
+skills.sh has no way to declare dependencies between skills, so install
+[herdr-core](https://github.com/herdrdev/herdr-core) alongside sheepdog:
+
+```sh
+npx skills add herdrdev/herdr-core -g
+npx skills add kerryhatcher/skills --skill sheepdog -g
+```
+
+sheepdog also needs the `hc` CLI from Herdr, plus whichever of `claude`, `codex`
+and `pi` you want it to delegate to.
 
 ## Skills
 
 | Skill | Description |
 | --- | --- |
 | [sops-age](skills/sops-age/SKILL.md) | Encrypt and use secrets with SOPS and age, including a convention for finding `~/secrets/secrets.env` |
-| [sheepdog](skills/sheepdog/SKILL.md) | Harness and model policy layered on herdr-core (`hc`); loads herdr-core and picks which agent and model runs each role |
+| [sheepdog](skills/sheepdog/SKILL.md) | Multi-agent policy layered on herdr-core (`hc`): which harness and model runs each role, cross-model review, worktree-per-part workflow, and resource cleanup. **Requires herdr-core** (see above) |
 
 ## Adding a skill
 

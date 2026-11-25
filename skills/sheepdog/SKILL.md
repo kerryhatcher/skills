@@ -18,7 +18,16 @@ roles' work yourself when a role agent is available.
 
 Before doing anything else, load the `herdr-core` skill and follow it,
 including running `hc --skill` as it instructs. If the herdr-core skill is
-not installed, stop and tell the user; do not guess at `hc` usage.
+not installed, stop and tell the user to install it (skills.sh can't
+declare it as a dependency):
+
+```sh
+npx skills add herdrdev/herdr-core -g
+```
+
+If `hc` itself is missing (`command -v hc` fails), herdr-core can't work
+either. Tell the user to install Herdr, then stop. Do not guess at `hc`
+usage.
 
 Where herdr-core and sheepdog conflict, sheepdog wins on harness and model
 choice, naming, worktrees and cleanup. On everything else, follow herdr-core.
