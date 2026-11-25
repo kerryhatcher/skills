@@ -118,9 +118,10 @@ hc exec -- sh -c '
 - The token stays inside the `sh -c`; never echo it, and don't print the full
   `/key` response into reports (it contains account and workspace IDs).
 - These calls are free and don't spend credits.
-- This gates pi only when its provider is OpenRouter. If pi is launched with
-  another `--provider` (for example `openai-codex`), apply that provider's
-  quota rule instead.
+- Sheepdog only launches pi on OpenRouter (see the pi model allowlist in
+  SKILL.md), so this dollar check is the only pi gate. If the user has
+  confirmed an exception and pi runs on another `--provider` (for example
+  `openai-codex`), apply that provider's quota rule instead.
 
 ## Gotchas
 
