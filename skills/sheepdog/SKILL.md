@@ -47,7 +47,7 @@ entry only if it pins the same harness and model as this table.
 | Role | Name prefix | Use for | Harness and model | Fallback (in order) |
 | --- | --- | --- | --- | --- |
 | planner | `plan` | Breaking down a part, design, specs | `claude --model opus` (latest Opus) | `claude --model sonnet`, then pi round robin |
-| implementer | `dev` | Writing and editing code | `codex --model <latest Terra>` | pi round robin |
+| implementer | `dev` | Writing and editing code | `codex --model <latest Terra>` for substantial coding; pi round robin for work suited to its agents | `codex --model <latest Luna>`, `claude --model haiku`, then pi round robin |
 | quick | `quick` | Small lookups, trivial edits, summaries | pi round robin | `claude --model sonnet` |
 | reviewer | `review` | Read-only review of plans and changes | chosen per artifact; see **Step 2b** | see Step 2b |
 | integrator | `integ` | Merging part branches, resolving conflicts, running the full test suite, PRs | `claude --model sonnet` | `codex --model <latest Sol>`, then Claude Opus |
@@ -58,13 +58,15 @@ fallback you used and why.
 
 ### Resolving "latest" model names
 
-- **Claude:** `--model opus` and `--model sonnet` are aliases that always
+- **Claude:** `--model opus`, `--model sonnet`, and `--model haiku` are aliases that always
   resolve to the newest Opus or Sonnet. Don't pin a version.
 - **Codex Terra / Sol:** use the highest-numbered `gpt-<version>-terra` (or
   `-sol`) that Codex lists, from Codex's `/model` picker or the `slug`
   fields in `$HOME/.codex/models_cache.json`. As of 2026-11-25 these are
   `gpt-6.1-terra` and `gpt-6.2-sol`. Terra and Sol versions move
   independently, so check each one.
+- **Codex Luna:** use the latest Luna model listed by Codex's `/model` picker
+  or `$HOME/.codex/models_cache.json`.
 
 ### pi round robin
 
@@ -120,12 +122,19 @@ that is installed, passes the quota gate, and is not the author's model:
 
 | Artifact produced by | Reviewer, in order of preference |
 | --- | --- |
-| Plan from Claude Opus | Codex latest Sol → `claude --model sonnet` → pi (round robin) |
-| Plan from a fallback planner | Claude Opus → Codex latest Sol → the other pi model |
-| Change from Codex Terra | Codex latest Sol → Claude Opus → pi (round robin) |
-| Change from a pi model | Codex latest Sol → the other pi model → `claude --model sonnet` |
-| Change from a quick task (pi) | the other pi model → Codex latest Sol → `claude --model sonnet` |
-| Integration change (merge fixes, conflict resolution) | Codex latest Sol → Claude Opus → pi (round robin); never the integrator's own model |
+| Plan from Claude Opus | Codex latest Sol → Codex latest Luna → `claude --model haiku` → `claude --model sonnet` → pi (round robin) |
+| Plan from a fallback planner | Claude Opus → Codex latest Sol → Codex latest Luna → `claude --model haiku` → the other pi model |
+| Change from Codex Terra | Codex latest Sol → `claude --model haiku` → Codex latest Luna → Claude Opus → pi (round robin) |
+| Change from Codex Luna or Claude Haiku | Codex latest Sol → Claude Opus → pi (round robin) |
+| Change from a pi model | Codex latest Sol → `claude --model haiku` → Codex latest Luna → the other pi model → `claude --model sonnet` |
+| Change from a quick task (pi) | the other pi model → Codex latest Luna → `claude --model haiku` → Codex latest Sol → `claude --model sonnet` |
+| Integration change (merge fixes, conflict resolution) | Codex latest Sol → `claude --model haiku` → Codex latest Luna → Claude Opus → pi (round robin); never the integrator's own model |
+
+Codex Luna and Claude Haiku are suitable for peer review of coding changes
+and for coding tasks within their capability. For work that is too complex
+for them but fits the pi agents, prefer pi. If pi is unavailable or fails
+its credit gate, use Luna or Haiku as an implementer fallback when the task
+fits. Apply the cross-model rule above when reviewing their changes.
 
 - Lookups and summaries that change no files and produce no plan don't need
   review.
@@ -152,7 +161,7 @@ session before the first launch, and again before each new wave of agents.
 
 **If any single quota on a harness (session, 5-hour, weekly, or per-model)
 has less than 20% remaining, do not launch that harness.** **For pi on
-OpenRouter, do not launch it when less than $10 of credit remains.** Route the role
+OpenRouter, do not launch it when less than 10 US dollars of credit remains.** Route the role
 to its fallback and say which quota was low and when it resets. If every
 candidate harness fails the gate, stop and ask the user before launching
 anything. If a quota can't be read, treat it as unknown: say so, and ask
@@ -168,14 +177,26 @@ RAM, disk and `/tmp` quota before. Before every launch, check:
 | Resource | Check | Don't launch if |
 | --- | --- | --- |
 | Live agents | `hc ls --label sheepdog=$run` | 4 or more of your agents are already live (excluding you) |
-| RAM | `awk '/MemAvailable/{print int($2/1048576)}' /proc/meminfo` (GiB) | under 4 GiB available |
-| Disk | `df -P <repo> \| awk 'NR==2{print $5}'` | the repo's filesystem is 85% full or more |
-| /tmp | `df -P /tmp \| awk 'NR==2{print $5}'` | `/tmp` is 80% full or more |
+| RAM, disk, /tmp | `<skill-dir>/scripts/gate.sh <repo>` | any line it prints as `FAIL`: under 4 GiB RAM available, the repo's filesystem is 85% full or more, or `/tmp` is 80% full or more |
+
+These limits are defaults; use the user's numbers if they give any, for every
+row including the live-agent count.
+
+Run the gate from wherever you are, without changing directory. Call it by its
+absolute path in this skill's directory (the one that holds this SKILL.md and
+`references/`), and pass the repo as an absolute path:
+`<skill-dir>/scripts/gate.sh "$(git rev-parse --show-toplevel)"`. It prints
+one `ok:`, `FAIL:` or `UNKNOWN:` line per resource. Exit 0 means all clear,
+1 means a gate failed, and 2 means a value couldn't be read or an argument was
+bad. Treat exit 2 as unknown: say so and ask the user before launching. Don't
+run cleanup for it. Pass the user's RAM, disk and `/tmp` numbers as whole
+numbers through `RAM_MIN_GIB`, `DISK_MAX_PCT` and `TMP_MAX_PCT`, for example
+`DISK_MAX_PCT=90`, not `90%`. Don't reimplement the checks inline: these are
+the only copies.
 
 If a check fails, run the cleanup in Step 6 first: finished and idle agents,
 merged worktrees, temp dirs. Then check again. If it still fails, wait for a
-running agent to finish, or ask the user. These limits are defaults; use the
-user's numbers if they give any.
+running agent to finish, or ask the user.
 
 ## Step 4: name and label every agent
 

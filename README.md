@@ -42,7 +42,7 @@ and `pi` you want it to delegate to.
 
 1. `cp -r template skills/<name>` and edit `SKILL.md`.
 2. Keep `name` equal to the directory name; start `description` with "Use when...".
-3. Run `scripts/validate.sh`.
+3. Run `scripts/validate.sh`. It checks frontmatter, rejects hardcoded home paths, and fails on literal `$<digit>` placeholders in `SKILL.md` (slash-command arguments are substituted into it; put shell snippets in `skills/<name>/scripts/` instead).
 
 ## Secret scanning
 
