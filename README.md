@@ -20,6 +20,7 @@ npx skills add kerryhatcher/skills --skill sops-age -a claude-code
 | Skill | Description |
 | --- | --- |
 | [sops-age](skills/sops-age/SKILL.md) | Encrypt and use secrets with SOPS and age, including a convention for finding `~/secrets/secrets.env` |
+| [sheepdog](skills/sheepdog/SKILL.md) | Harness and model policy layered on herdr-core (`hc`); loads herdr-core and picks which agent and model runs each role |
 
 ## Adding a skill
 
