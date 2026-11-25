@@ -17,10 +17,11 @@ if grep -rnE '/(home|Users)/[A-Za-z0-9_.-]+' skills template README.md AGENTS.md
   echo "FAIL: hardcoded home path found (use \$HOME)"; fail=1
 fi
 # Claude Code substitutes slash-command arguments into SKILL.md, so a literal
-# $<digit> (or $(N) / ${N}) is rewritten at load time and corrupts the text.
-# Scoped to SKILL.md: references/ is read with file tools, and docs/ has real
+# $<digit> (or $(N) / ${N}, or $ARGUMENTS) is rewritten at load time and
+# corrupts the text. Scoped to SKILL.md (including the template every new skill
+# is copied from): references/ is read with file tools, and docs/ has real
 # prices like $0.25.
-if grep -rnE '\$[0-9]|\$\([0-9]+\)|\$\{[0-9]+\}' skills/*/SKILL.md; then
+if grep -nE '\$[0-9]|\$\([0-9]+\)|\$\{[0-9]+\}|\$ARGUMENTS' skills/*/SKILL.md template/SKILL.md; then
   echo "FAIL: literal argument placeholder in SKILL.md (would be substituted; use a script or spell the amount out)"; fail=1
 fi
 [[ $fail -eq 0 ]] && echo "OK: all skills valid"

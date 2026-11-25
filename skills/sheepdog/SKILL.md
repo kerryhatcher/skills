@@ -168,13 +168,22 @@ RAM, disk and `/tmp` quota before. Before every launch, check:
 | Resource | Check | Don't launch if |
 | --- | --- | --- |
 | Live agents | `hc ls --label sheepdog=$run` | 4 or more of your agents are already live (excluding you) |
-| RAM, disk, /tmp | `scripts/gate.sh <repo>` | any line it prints as `FAIL`: under 4 GiB RAM available, the repo's filesystem is 85% full or more, or `/tmp` is 80% full or more |
+| RAM, disk, /tmp | `<skill-dir>/scripts/gate.sh <repo>` | any line it prints as `FAIL`: under 4 GiB RAM available, the repo's filesystem is 85% full or more, or `/tmp` is 80% full or more |
 
-Run `scripts/gate.sh <repo>` from the skill directory (the same place
-`references/` resolves from). It prints one `ok:` or `FAIL:` line per resource
-and exits non-zero when a gate fails. Pass the user's numbers through
-`RAM_MIN_GIB`, `DISK_MAX_PCT` and `TMP_MAX_PCT` when they give their own
-limits. Don't reimplement the checks inline: these are the only copies.
+These limits are defaults; use the user's numbers if they give any, for every
+row including the live-agent count.
+
+Run the gate from wherever you are, without changing directory. Call it by its
+absolute path in this skill's directory (the one that holds this SKILL.md and
+`references/`), and pass the repo as an absolute path:
+`<skill-dir>/scripts/gate.sh "$(git rev-parse --show-toplevel)"`. It prints
+one `ok:`, `FAIL:` or `UNKNOWN:` line per resource. Exit 0 means all clear,
+1 means a gate failed, and 2 means a value couldn't be read or an argument was
+bad. Treat exit 2 as unknown: say so and ask the user before launching. Don't
+run cleanup for it. Pass the user's RAM, disk and `/tmp` numbers as whole
+numbers through `RAM_MIN_GIB`, `DISK_MAX_PCT` and `TMP_MAX_PCT`, for example
+`DISK_MAX_PCT=90`, not `90%`. Don't reimplement the checks inline: these are
+the only copies.
 
 If a check fails, run the cleanup in Step 6 first: finished and idle agents,
 merged worktrees, temp dirs. Then check again. If it still fails, wait for a
