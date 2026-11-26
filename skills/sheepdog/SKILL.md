@@ -133,7 +133,8 @@ same model at a different reasoning effort does **not** count.
 
 Track the author of every artifact with the `model=` label (Step 4) and in
 its report. Then pick the reviewer from this table, taking the first option
-that is installed, passes the quota gate, and is not the author's model:
+that is installed, passes the quota gate, is not the author's model, and that
+the user hasn't opted out of (for example, skip `agy` if the user said to avoid it):
 
 | Artifact produced by | Reviewer, in order of preference |
 | --- | --- |
@@ -178,7 +179,9 @@ session before the first launch, and again before each new wave of agents.
 - pi on OpenRouter: pay-per-token, so check the dollar balance through the
   OpenRouter credits API with `hc exec`.
 - Antigravity (`agy`): run `agy -p "/usage" --output-format json` (one shot,
-  no agent) and read the `Gemini Models` buckets. Each bucket's
+  no agent) and read the `Gemini Models` buckets. Run it only after the
+  `disableSlashCommands` check in [references/quota.md](references/quota.md);
+  otherwise the quota is unknown. Each bucket's
   `remaining_fraction` is the share left, from 0 to 1. A `reset_time` says when
   it refills.
 

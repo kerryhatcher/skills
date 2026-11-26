@@ -127,8 +127,22 @@ hc exec -- sh -c '
 ## Antigravity (`agy`): `/usage` in one shot
 
 `agy` prints its quota without an interactive terminal. Run this from any
-folder; it starts no agent and no model turn (`num_turns` is 0 and `usage` is
-zero in the output):
+folder, but only when slash commands are enabled. Check first:
+
+```sh
+jq -e '(.disableSlashCommands // false) != true' ~/.gemini/antigravity-cli/settings.json >/dev/null 2>&1 \
+  && echo enabled || echo unknown
+```
+
+If the check prints `unknown` (the setting is `true`, or the settings file
+can't be read), don't run `/usage`: with slash commands disabled it is sent to
+the model as an ordinary prompt and spends a model turn. Treat the quota as
+unknown and ask before spending on `agy`. (Tested 2026-11-26 with
+`--settings '{"disableSlashCommands": true}'`: the prompt reached the model,
+which ran a turn of about 43k input tokens before the test was interrupted.)
+
+When enabled, the command starts no agent and no model turn (`num_turns` is 0
+and `usage` is zero in the output):
 
 ```sh
 agy -p "/usage" --output-format json
