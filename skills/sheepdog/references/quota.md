@@ -1,7 +1,8 @@
-# Checking Claude Code, Codex and pi (OpenRouter) quota with hc
+# Checking Claude Code, Codex, pi (OpenRouter) and Antigravity quota
 
-Neither `hc` nor the harnesses expose a quota command you can pipe. The
-reliable method is to open the harness's own usage screen in a throwaway hc
+Except for Antigravity (`agy`), which has a one-shot usage command, neither
+`hc` nor the harnesses expose a quota command you can pipe. The reliable
+method for those is to open the harness's own usage screen in a throwaway hc
 terminal and read it. Verified against Claude Code 2.1.x and codex-cli 0.17x;
 screen wording may change, so read the screen rather than trusting exact
 patterns.
@@ -123,10 +124,69 @@ hc exec -- sh -c '
   confirmed an exception and pi runs on another `--provider` (for example
   `openai-codex`), apply that provider's quota rule instead.
 
+## Antigravity (`agy`): `/usage` in one shot
+
+`agy` prints its quota without an interactive terminal. Run this from any
+folder, but only when slash commands are enabled. Check first:
+
+```sh
+jq -e '(.disableSlashCommands // false) != true' ~/.gemini/antigravity-cli/settings.json >/dev/null 2>&1 \
+  && echo enabled || echo unknown
+```
+
+If the check prints `unknown` (the setting is `true`, or the settings file
+can't be read), don't run `/usage`: with slash commands disabled it is sent to
+the model as an ordinary prompt and spends a model turn. Treat the quota as
+unknown and ask before spending on `agy`. (Tested 2026-11-26 with
+`--settings '{"disableSlashCommands": true}'`: the prompt reached the model,
+which ran a turn of about 43k input tokens before the test was interrupted.)
+
+When enabled, the command starts no agent and no model turn (`num_turns` is 0
+and `usage` is zero in the output):
+
+```sh
+agy -p "/usage" --output-format json
+```
+
+Sheepdog reads the `Gemini Models` group, which covers the Gemini models it
+launches. Each bucket has `remaining_fraction` (the share left, from 0 to 1)
+and `reset_time`:
+
+```sh
+agy -p "/usage" --output-format json | jq -c '.command.data.groups[]
+  | select(.name == "Gemini Models") | .buckets[]
+  | {id, window, remaining_fraction, reset_time}'
+```
+
+```json
+{"id":"gemini-weekly","window":"weekly","remaining_fraction":0.992,"reset_time":"2026-12-03T16:40:20Z"}
+{"id":"gemini-5h","window":"5h","remaining_fraction":0.970,"reset_time":"2026-11-26T21:40:20Z"}
+```
+
+(Captured 2026-11-26; values are illustrative.)
+
+- Gate: `remaining_fraction` below `0.20` means less than 20% remaining. Report
+  the `window` and `reset_time` of the bucket that failed.
+- The `Claude and GPT models` group is also listed. Sheepdog doesn't launch
+  those through `agy`, so the gate ignores it.
+- If the call fails, exits non-zero, or has no `Gemini Models` group, treat
+  the quota as unknown and ask before spending on `agy`. A `GEMINI_API_KEY`
+  login has no account quota; `agy` then exits with code 2 and says so. Treat
+  that as unknown too.
+- `agy -p "/credits"` prints `Remaining credits N` (AI credits). The gate does
+  not use it. Don't launch on a bucket above 20% just because credits exist,
+  and don't skip a bucket below 20% just because credits exist.
+- Text form, if JSON parsing breaks:
+  `agy -p "/usage"` prints tab-separated rows such as
+  `Gemini Models<TAB>Five Hour Limit Remaining<TAB>96%<TAB><reset time>`.
+- This is a quota check, not an agent. The "no print mode" rule for agents
+  still applies: launch Antigravity agents interactively (`agy -i`).
+
 ## Gotchas
 
 - **Trust dialogs.** Launching a harness in a folder it hasn't seen shows a
-  trust prompt and the slash command goes nowhere. Launch quota checks with
+  trust prompt and the slash command goes nowhere. This includes `agy`, which
+  shows "Trust this folder?" in its first session in a folder. Launch quota checks with
   `--cwd "$HOME"` (or another already-trusted folder), and `hc read` before
   typing if the screen looks wrong. Don't accept trust for a project just to
   check quota.
