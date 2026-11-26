@@ -51,10 +51,17 @@ entry only if it pins the same harness and model as this table.
 | quick | `quick` | Small lookups, trivial edits, summaries | pi round robin | `claude --model sonnet` |
 | reviewer | `review` | Read-only review of plans and changes | chosen per artifact; see **Step 2b** | see Step 2b |
 | integrator | `integ` | Merging part branches, resolving conflicts, running the full test suite, PRs | `claude --model sonnet` | `codex --model <latest Sol>`, then Claude Opus |
+| researcher | `research` | Reading and comparing sources, web and literature research, digesting large amounts of docs or code into a findings file. Read-only; writes no code. | **Optional:** `agy --model <latest Gemini high>` (Google Antigravity CLI) | `claude --model sonnet`, then pi round robin |
 
 "Fallback" means the primary harness isn't installed, failed the quota gate
 (Step 3), or failed twice on the same task. Say once in your report which
 fallback you used and why.
+
+**Antigravity (`agy`) is optional.** Use it for the researcher role only when
+`agy` is installed, the user hasn't said to avoid it, and its Gemini quota
+passes the gate in Step 3. If any of those fail, use the fallback without
+asking. Never use `agy` for the planner, implementer, quick or integrator roles
+unless the user names it for that task.
 
 ### Resolving "latest" model names
 
@@ -67,6 +74,14 @@ fallback you used and why.
   independently, so check each one.
 - **Codex Luna:** use the latest Luna model listed by Codex's `/model` picker
   or `$HOME/.codex/models_cache.json`.
+- **Gemini (agy):** list the models with `agy models`, and take the
+  highest-numbered `gemini-<version>-<family>-<effort>` entry. As of
+  2026-11-26 that is the Gemini 4 line (`gemini-4-neon-*`, `-carbon-*`,
+  `-argon-*`, `-hydrogen-*`). The family names don't say which is strongest,
+  so when the user hasn't named one, use `gemini-4-hydrogen-high` for research:
+  high effort, not xhigh, to keep quota use down. The `Claude and GPT models`
+  that `agy` also lists are not sheepdog harnesses; launch Claude through
+  `claude` instead.
 
 ### pi round robin
 
@@ -122,12 +137,14 @@ that is installed, passes the quota gate, and is not the author's model:
 
 | Artifact produced by | Reviewer, in order of preference |
 | --- | --- |
-| Plan from Claude Opus | Codex latest Sol → Codex latest Luna → `claude --model haiku` → `claude --model sonnet` → pi (round robin) |
+| Plan from Claude Opus | Codex latest Sol → Codex latest Luna → `claude --model haiku` → `claude --model sonnet` → pi (round robin) → `agy` Gemini (optional, if it passes the gate) |
 | Plan from a fallback planner | Claude Opus → Codex latest Sol → Codex latest Luna → `claude --model haiku` → the other pi model |
 | Change from Codex Terra | Codex latest Sol → `claude --model haiku` → Codex latest Luna → Claude Opus → pi (round robin) |
 | Change from Codex Luna or Claude Haiku | Codex latest Sol → Claude Opus → pi (round robin) |
 | Change from a pi model | Codex latest Sol → `claude --model haiku` → Codex latest Luna → the other pi model → `claude --model sonnet` |
 | Change from a quick task (pi) | the other pi model → Codex latest Luna → `claude --model haiku` → Codex latest Sol → `claude --model sonnet` |
+| Research from `agy` Gemini | Claude Opus → Codex latest Sol → `claude --model sonnet` → pi (round robin) |
+| Research from `claude --model sonnet` or a pi model | `agy` Gemini (optional) → Codex latest Sol → Claude Opus → the other pi model |
 | Integration change (merge fixes, conflict resolution) | Codex latest Sol → `claude --model haiku` → Codex latest Luna → Claude Opus → pi (round robin); never the integrator's own model |
 
 Codex Luna and Claude Haiku are suitable for peer review of coding changes
@@ -137,7 +154,9 @@ its credit gate, use Luna or Haiku as an implementer fallback when the task
 fits. Apply the cross-model rule above when reviewing their changes.
 
 - Lookups and summaries that change no files and produce no plan don't need
-  review.
+  review. A research report that a plan or change depends on is reviewed with
+  that plan or change; a standalone research report that the user will act on
+  is reviewed with the rows above.
 - Reviewers are read-only: they report findings and do not edit.
 - When a review leads to fixes, the fixer is the author of those fixes.
   Review the fixes again with a model other than the fixer's.
@@ -148,9 +167,9 @@ fits. Apply the cross-model rule above when reviewing their changes.
 
 ## Step 3: gates before every launch (quota and resources)
 
-### Quota (Claude Code, Codex, pi)
+### Quota (Claude Code, Codex, pi, Antigravity)
 
-Before delegating to `claude`, `codex` or `pi`, check that harness's quota with hc
+Before delegating to `claude`, `codex`, `pi` or `agy`, check that harness's quota
 as described in [references/quota.md](references/quota.md). Check once per
 session before the first launch, and again before each new wave of agents.
 
@@ -158,9 +177,14 @@ session before the first launch, and again before each new wave of agents.
 - Codex: open `/status`; each limit line reads `NN% left`.
 - pi on OpenRouter: pay-per-token, so check the dollar balance through the
   OpenRouter credits API with `hc exec`.
+- Antigravity (`agy`): run `agy -p "/usage" --output-format json` (one shot,
+  no agent) and read the `Gemini Models` buckets. Each bucket's
+  `remaining_fraction` is the share left, from 0 to 1. A `reset_time` says when
+  it refills.
 
 **If any single quota on a harness (session, 5-hour, weekly, or per-model)
-has less than 20% remaining, do not launch that harness.** **For pi on
+has less than 20% remaining, do not launch that harness.** For `agy`, that
+means any Gemini bucket with `remaining_fraction` below 0.20. **For pi on
 OpenRouter, do not launch it when less than 10 US dollars of credit remains.** Route the role
 to its fallback and say which quota was low and when it resets. If every
 candidate harness fails the gate, stop and ask the user before launching
@@ -234,6 +258,7 @@ Model IDs that start with `~` are fine inside a label value, but quote them.
 | --- | --- |
 | `claude` | `claude --name <name> --model …` |
 | `pi` | `pi --name <name> --provider openrouter --model …` |
+| `agy` | **Not automatable.** `agy --help` has no session name flag. Rely on the hc name, labels and Herdr pane name, and say in your report that the agy session name is unset. |
 | `codex` | **Not automatable yet.** Codex has no name flag. Its "rename the current thread" command exists, but text sent with `hc send` (`/rename <name>` or bare `/rename`, tested with codex-cli 0.172.0) is submitted as an ordinary prompt and spends a turn. Don't send it. Rely on the hc name, labels and Herdr pane name for Codex agents, and say in your report that their Codex thread names are unset. |
 
 **Herdr pane name:** hidden workers have no pane, so there is nothing to
@@ -344,6 +369,30 @@ Claude and pi also take their session name at launch:
 Launching through `env` is safe: hc still recognises the harness (tested:
 `hc get` reports `app: codex`, state `idle`).
 
+### Antigravity (`agy`) researcher
+
+Launch `agy` interactively with the task as its initial prompt (`-i`), never
+with `-p`, the same as every other agent. `--mode plan` keeps a researcher
+read-only (per `agy --help`). Give it a findings file to write, outside the
+repo, and have it report the path:
+
+```sh
+tmp="${XDG_CACHE_HOME:-$HOME/.cache}/sheepdog/tmp/research-api"; mkdir -p "$tmp"
+hc run --bg --name research-api --cwd "$wt" \
+  --label sheepdog=$run --label role=research --label part=api --label model=gemini-4-hydrogen-high \
+  env TMPDIR="$tmp" agy --model gemini-4-hydrogen-high --mode plan -i \
+  "Research <question>. Read-only; no subagents. Write findings to <findings-path> and report that path with hc send $HC_TERMINAL_ID when done or stuck."
+```
+
+- hc recognises `agy` (tested: `hc get` reports `app: antigravity`), and its
+  permission and trust prompts show as `blocked`.
+- `agy` asks **"Trust this folder?"** the first time it sees a folder, and the
+  task stays unsent until someone answers. Read the screen with `hc read`.
+  Accept it with `hc keys <t> enter` only for a folder this run created or the
+  user named (for example the run's worktree). Never accept it for your home
+  folder or any other folder you did not choose.
+- `agy` has no session-name flag, so set only the hc name and labels.
+
 ## Rules
 
 - If a role's primary harness and all of its fallbacks are unavailable
@@ -354,5 +403,7 @@ Launching through `env` is safe: hc still recognises the harness (tested:
   exception. The cross-model review rule still applies.
 - Don't let children start more agents unless you assign that explicitly
   (herdr-core rule; repeated here because it matters for cost and RAM).
+- Antigravity is optional. Never make a plan, change or integration depend on
+  it alone: if it is unavailable, use the researcher fallback and say so.
 - Don't push, open PRs, or merge unless the user asked for that in this
   session.

@@ -29,7 +29,8 @@ npx skills add kerryhatcher/skills --skill sheepdog -g
 ```
 
 sheepdog also needs the `hc` CLI from Herdr, plus whichever of `claude`, `codex`
-and `pi` you want it to delegate to.
+and `pi` you want it to delegate to. Google Antigravity (`agy`) is optional: sheepdog
+uses it only for research tasks, and only if it is installed.
 
 ## Skills
 
